@@ -26,22 +26,31 @@ def make_fake_input(*args):
 
 
 class MyTestCase(unittest.TestCase):
+    """Как поместить все патчи с подменой документов в один метод, чтобы каждый раз это не делать?"""
+    @patch('main.documents', new=mock_documents)
     def test_check_document_existance(self):
+        """проверка существующего документа"""
         self.assertEqual(check_document_existance('10006'), True)
-        self.assertEqual(check_document_existance(''), False)
+
+    @patch('main.documents', new=mock_documents)
+    def test_check_document_existance(self):
+        """проверка не существующего документа"""
+        self.assertEqual(check_document_existance('bad_doc'), False)
 
     @patch('main.documents', new=mock_documents)
     def test_get_all_doc_owners_names(self):
         exp_res = set([doc['name'] for doc in mock_documents])
         self.assertEqual(get_all_doc_owners_names(), exp_res)
 
+    @patch.dict('main.directories', mock_directories)
+    @patch('main.documents', new=mock_documents)
     def test_get_doc_owner_name(self):
         with unittest.mock.patch('builtins.input', return_value='10006'):
             self.assertEqual(get_doc_owner_name(), 'Аристарх Павлов')
 
+    @patch.dict('main.directories', mock_directories)
     def test_get_doc_shelf_1(self):
-        with unittest.mock.patch('builtins.input', return_value='10006'):
-            self.assertEqual(get_doc_shelf(), '2')
+        """неверный номер документа"""
         with unittest.mock.patch('builtins.input', return_value='not_spam'):
             self.assertEqual(get_doc_shelf(), None)
 
@@ -49,22 +58,27 @@ class MyTestCase(unittest.TestCase):
     @patch('builtins.input', return_value='10006')
     @patch('main.check_document_existance', return_value=True)
     def test_get_doc_shelf_2(self, check_document_existance, input):
+        """верный номер документа"""
         self.assertEqual(get_doc_shelf(), '2')
 
-    def test_remove_doc_from_shelf(self):
-        """это же равноценный синтаксис с предыдущим тестом?"""
-        with unittest.mock.patch.dict('main.directories', mock_directories):
-            with unittest.mock.patch('main.check_document_existance', return_value=True):
-                with unittest.mock.patch('builtins.input', return_value='11-2'):
-                    self.assertEqual(get_doc_shelf(), '1')
-                    self.assertEqual(remove_doc_from_shelf('11-2'), None)
-                    self.assertEqual(get_doc_shelf(), None)
+    @patch.dict('main.directories', mock_directories)
+    @patch('builtins.input', return_value='11-2')
+    @patch('main.check_document_existance', return_value=True)
+    def test_remove_doc_from_shelf(self, check_document_existance, input):
+        remove_doc_from_shelf('11-2')
+        self.assertEqual(get_doc_shelf(), None)
 
+    @patch.dict('main.directories', mock_directories)
     @patch('builtins.input', return_value='4')
-    def test_add_new_shelf(self, input):
-        self.assertEqual(add_new_shelf('1'), ('1', False))
-        self.assertEqual(add_new_shelf('4'), ('4', True))
-        self.assertEqual(add_new_shelf(), ('4', False))
+    def test_add_new_shelf_1(self, input):
+        """новая полка"""
+        self.assertEqual(add_new_shelf(), ('4', True))
+
+    @patch.dict('main.directories', mock_directories)
+    @patch('builtins.input', return_value='1')
+    def test_add_new_shelf_2(self, input):
+        """уже существующая полка"""
+        self.assertEqual(add_new_shelf(), ('1', False))
 
     @patch.dict('main.directories', mock_directories)
     @patch('builtins.input', return_value='some_doc_number')
@@ -76,20 +90,15 @@ class MyTestCase(unittest.TestCase):
     @patch.dict('main.directories', mock_directories)
     @patch('main.documents', new=mock_documents)
     @patch('builtins.input', return_value='2207 876234')
-    def test_delete_doc(self, input):
-        """не могу понять, почему в этом принте месте выводится оригинал списка, а не его подмена,
+    @patch('main.check_document_existance', return_value=True)
+    def test_delete_doc(self, check_document_existance, input):
+        """не могу понять, почему в этом принте выводится оригинал списка, а не его подмена,
         хотя внутри функций из мейна всё подставляется как надо - из mock_documents"""
-        print(documents)
-
-        self.assertIn('Василий Гупкин', get_all_doc_owners_names())
+        print(documents)  # <-----------
         self.assertEqual(delete_doc(), ('2207 876234', True))
-        self.assertNotIn('Василий Гупкин', get_all_doc_owners_names())
 
     @patch.dict('main.directories', mock_directories)
-    @patch('main.check_document_existance', return_value=True)
-    def test_move_doc_to_shelf(self, check_document_existance):
-        with unittest.mock.patch('builtins.input', return_value='10006'):
-            self.assertEqual(get_doc_shelf(), '2')
+    def test_move_doc_to_shelf(self):
         with unittest.mock.patch('builtins.input', new=make_fake_input('10006', '3')):
             move_doc_to_shelf()
         with unittest.mock.patch('builtins.input', return_value='10006'):
@@ -100,8 +109,6 @@ class MyTestCase(unittest.TestCase):
     @patch('builtins.input', new=make_fake_input('test_num', 'test_type', 'test_name', '3'))
     def test_add_new_doc(self):
         self.assertEqual(add_new_doc(), '3')
-        print(mock_directories)
-        print(mock_documents)
 
 
 if __name__ == '__main__':
